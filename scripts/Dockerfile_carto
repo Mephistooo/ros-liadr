@@ -1,0 +1,181 @@
+FROM dustynv/ros:noetic-pytorch-l4t-r34.1.0
+
+RUN sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+
+RUN sudo apt-get update && apt-get install -y libproj15 
+RUN curl http://ports.ubuntu.com/pool/universe/p/proj/proj-bin_6.3.1-1_arm64.deb -o proj-bin_6.3.1-1_arm64.deb 
+RUN sudo dpkg -i proj-bin_6.3.1-1_arm64.deb 
+
+RUN apt-get update && \
+ apt-get -y install proj-bin ros-noetic-rviz \
+ ros-noetic-navigation git nano
+
+
+#
+# setup hector_slam dep
+#
+WORKDIR /workspace/src
+RUN sudo git clone https://github.com/robopeak/rplidar_ros.git
+# RUN git clone -b noetic-devel https://github.com/tu-darmstadt-ros-pkg/hector_navigation.git
+# RUN git clone https://github.com/tu-darmstadt-ros-pkg/ceres_catkin.git
+# RUN git clone https://github.com/catkin/catkin_simple.git
+# RUN git clone https://github.com/ethz-asl/glog_catkin.git
+# RUN git clone https://github.com/ethz-asl/gflags_catkin.git
+
+
+RUN sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+
+RUN lsb_release -sc
+#
+
+# install ros dep
+#
+RUN  apt-get install -y golang-golang-x-sys-dev python3-catkin-pkg \
+    libgflags-dev 
+RUN apt-get install apt-utils
+RUN sudo sysctl kernel.dmesg_restrict=0
+
+WORKDIR /workspace
+#RUN rosdep
+RUN rosdep install -r -y --from-paths src --ignore-src --skip-keys "gazebo11 libgazebo11-dev libopencv-dev libopencv-contrib-dev libopencv-imgproc-dev python-opencv python3-opencv" 
+
+
+# RUN sudo apt install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential
+
+# RUN sudo apt install python3-rosdep
+# RUN sudo rosdep init
+# RUN rosdep update
+
+# #
+# # catkin_make 
+# #
+# COPY scripts/ros_entrypoint.sh /ros_entrypoint.sh
+# RUN bash /opt/ros/noetic/setup.bash
+# WORKDIR /workspace/src
+# #RUN git clone https://github.com/ros-perception/perception_pcl.git
+# RUN rm -rf hector_navigation/ hector_gps_calibration
+# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin config -DCATKIN_ENABLE_TESTING=0;  catkin_make'
+
+
+# # WORKDIR /workspace/src
+# RUN git clone -b noetic-devel https://github.com/tu-darmstadt-ros-pkg/hector_navigation.git
+# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make -DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic"'
+
+
+#
+# set up motors and luanch files
+#
+WORKDIR /workspace
+RUN apt-get install -y python3-pip
+#RUN pip install Adafruit_MotorHAT
+# RUN sudo rm /opt/ros/noetic/share/hector_mapping/launch/mapping_default.launch
+#run sudo rm /usr/local/lib/python3.8/dist-packages/Adafruit_MotorHAT/Adafruit_MotorHAT_Motors.py
+# COPY mapping_default.launch /opt/ros/noetic/share/hector_mapping/launch/mapping_default.launch
+# COPY entry.launch /opt/ros/noetic/share/hector_slam_launch/launch/entry.launch
+#COPY motor_hat.py /usr/local/lib/python3.8/dist-packages/Adafruit_MotorHAT/Adafruit_MotorHAT_Motors.py
+
+RUN sudo apt-get install -y python3-smbus 
+RUN pip3 install adafruit-circuitpython-pca9685 Jetson.GPIO
+
+
+RUN sudo apt-get install npm -y
+RUN git clone https://github.com/RoboStack/jupyter-ros.git
+WORKDIR /workspace/jupyter-ros
+RUN pip install -e .
+#RUn whereis jupyter
+RUN pip install numpy --upgrade
+RUN pip install jupyros
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable --py --sys-prefix widgetsnbextension'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable jupyros --py --sys-prefix'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension install --py --symlink --sys-prefix jupyros'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable --py --sys-prefix jupyros'
+RUN /bin/bash -c 'jupyter notebook --generate-config'
+RUN rm -rf /root/.jupyter/jupyter_notebook_config.py
+COPY jupyter_config.py /root/.jupyter/jupyter_notebook_config.py
+WORKDIR /workspace/src
+RUN git clone https://github.com/RobotWebTools/tf2_web_republisher.git
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
+WORKDIR /workspace
+RUN pip install Adafruit_CircuitPython_RPLIDAR
+
+#RUN conda install jupyter bqplot pyyaml ipywidgets
+RUN sudo apt-get update; apt-get install -y python3-wstool python3-rosdep ninja-build stow
+
+RUN mkdir /catkin_ws
+WORKDIR /catkin_ws
+# RUN wstool init src
+# RUN wstool merge -t src https://raw.githubusercontent.com/cartographer-project/cartographer_ros/master/cartographer_ros.rosinstall
+# RUN wstool update -t src
+# RUN rosdep update
+# RUN rosdep install --from-paths src --ignore-src --rosdistro=noetic -y
+# RUN bash src/cartographer/scripts/install_abseil.sh
+# RUN sudo apt-get install -y libceres-dev
+RUN sudo apt-get install -y \
+    clang \
+    cmake \
+    g++ \
+    git \
+    google-mock \
+    libboost-all-dev \
+    libcairo2-dev \
+    libcurl4-openssl-dev \
+    libeigen3-dev \
+    libgflags-dev \
+    libgoogle-glog-dev \
+    liblua5.2-dev \
+    libsuitesparse-dev \
+    lsb-release \
+    ninja-build \
+    stow
+
+WORKDIR /catkin_ws
+RUN git clone https://ceres-solver.googlesource.com/ceres-solver
+WORKDIR /catkin_ws/ceres-solver
+RUN git checkout tags/1.13.0
+RUN mkdir build
+WORKDIR catkin_ws/ceres-solver/build
+RUN cmake /catkin_ws/ceres-solver -G Ninja -DCXX11=ON
+# RUN ninja
+# RUN CTEST_OUTPUT_ON_FAILURE=1 ninja test
+RUN sudo ninja install
+WORKDIR /catkin_ws
+RUN git clone https://github.com/google/protobuf.git
+WORKDIR /catkin_ws/protobuf
+RUN git checkout tags/v3.4.1
+RUN mkdir build
+WORKDIR /catkin_ws/protobuf/build
+RUN cmake -G Ninja \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  -DCMAKE_BUILD_TYPE=Release \
+  -Dprotobuf_BUILD_TESTS=OFF \
+  ../cmake
+RUN ninja
+RUN sudo ninja install
+WORKDIR /usr/local/stow
+RUN sudo stow absl
+
+WORKDIR /workspace/src
+RUN git clone -b noetic-devel https://github.com/tu-darmstadt-ros-pkg/hector_navigation.git
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make -DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic"'
+
+
+
+# RUN sudo apt-get install -y python3-sphinx libgmock-dev libceres-dev protobuf-compiler
+# WORKDIR /catkin_ws/src
+# RUN git clone https://github.com/cartographer-project/cartographer_ros.git
+# RUN rosdep install -r -y --from-paths src --ignore-src --skip-keys "gazebo11 libgazebo11-dev libopencv-dev libopencv-contrib-dev libopencv-imgproc-dev python-opencv python3-opencv" 
+# WORKDIR /catkin_ws
+# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; catkin_make_isolated --install '
+# #
+# # setup jetbot dep
+# #
+# RUN apt-get update; apt-get -y install python3-pip
+# RUN pip install Adafruit-MotorHAT
+
+# WORKDIR /workspace/src
+# RUN git clone -b melodic https://github.com/dusty-nv/jetbot_ros
+
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["bash"]

@@ -1,0 +1,83 @@
+FROM ros:noetic-robot
+#
+# setup ROS pkg dep
+#
+RUN apt-get update && \
+ apt-get -y install ros-noetic-rviz \
+ ros-noetic-hector-slam ros-noetic-vision-msgs \ 
+ ros-noetic-image-transport ros-noetic-image-publisher \
+ ros-noetic-navigation git nano
+
+#
+# setup hector_slam dep
+#
+WORKDIR /workspace/src
+RUN sudo git clone https://github.com/robopeak/rplidar_ros.git
+RUN git clone https://github.com/tu-darmstadt-ros-pkg/hector_navigation.git
+RUN git clone https://github.com/tu-darmstadt-ros-pkg/ceres_catkin.git
+RUN git clone https://github.com/catkin/catkin_simple.git
+RUN git clone https://github.com/ethz-asl/glog_catkin.git
+RUN git clone https://github.com/ethz-asl/gflags_catkin.git
+
+#
+# install ros dep
+#
+RUN apt-get install -y golang-golang-x-sys-dev python3-catkin-pkg \
+    libgflags-dev ros-noetic-pcl-conversions
+
+WORKDIR /workspace
+RUN rosdep install -r -y --from-paths src --ignore-src
+
+#
+# catkin_make 
+#
+COPY scripts/ros_entrypoint.sh /ros_entrypoint.sh
+RUN bash /opt/ros/noetic/setup.bash
+WORKDIR /workspace 
+RUN rm -rf src/hector_navigation/ hector_gps_calibration
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
+
+#
+# install cuda
+#
+# RUN sudo apt-get install linux-headers-$(uname -r)
+RUN sudo apt-get install -y wget software-properties-common
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/sbsa/cuda-ubuntu2004.pin
+RUN sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+RUN wget https://developer.download.nvidia.com/compute/cuda/11.6.2/local_installers/cuda-repo-ubuntu2004-11-6-local_11.6.2-510.47.03-1_arm64.deb
+RUN sudo dpkg -i cuda-repo-ubuntu2004-11-6-local_11.6.2-510.47.03-1_arm64.deb
+RUN sudo apt-key add /var/cuda-repo-ubuntu2004-11-6-local/7fa2af80.pub
+RUN sudo apt-get update
+RUN sudo apt-get -y install cuda
+
+
+
+
+# clone the repo and submodules
+WORKDIR /workspace
+RUN git clone https://github.com/dusty-nv/jetson-inference
+WORKDIR /workspace/jetson-inference
+RUN git submodule update --init
+# build from source
+RUN mkdir build
+WORKDIR /workspace/jetson-inference/build
+RUN sudo apt-get install -y libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran python3-pip
+RUN pip install --upgrade pip
+RUN sudo pip3 install --pre --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v46 tensorflow
+RUN /bin/bash -c 'cmake ../'
+RUN /bin/bash -c 'make'
+RUN /bin/bash -c 'sudo make install'
+
+
+# #
+# # setup jetbot dep
+# #
+# RUN apt-get update; apt-get -y install python3-pip
+# RUN pip install Adafruit-MotorHAT
+
+# WORKDIR /workspace/src
+# RUN git clone -b melodic https://github.com/dusty-nv/jetbot_ros
+
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["bash"]

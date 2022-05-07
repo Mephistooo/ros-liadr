@@ -1,0 +1,64 @@
+version: '2'
+services:
+  lidar-demo:
+    image: ros1-jupyter-lidar
+    container_name: ros1-hector-lidar
+    environment:
+      - ROS_HOSTNAME=lidar-demo
+      - ROS_MASTER_URI=http://ros-core:11311
+    depends_on:
+      - ros-core
+    # entrypoint:
+    #   - /ros_entrypoint.sh
+      # - --wait
+      # - rplidar_ros
+      # - view_rplidar.launch
+    command: 
+     - roslaunch
+      - --wait
+      - rplidar_ros
+      - rplidar.launch
+    devices:
+      - /dev/ttyUSB0
+      - /dev/snd
+      - /dev/bus/usb
+      - /dev/video0
+    volumes:
+      - /tmp/.X11-unix/:/tmp/.X11-unix 
+      - /tmp/argus_socket:/tmp/argus_socket 
+      - /etc/enctune.conf:/etc/enctune.conf 
+
+  ros-core:
+    image: ros1-bridge-jupyter-hector
+    container_name: ros-core
+    ports:
+      - "11311:11311"
+    command:
+      - roscore
+
+  ros-bridge:
+    image: ros1-bridge-jupyter-hector
+    container_name: ros-bridge
+    environment:
+      - "ROS_HOSTNAME=ros-bridge"
+      - "ROS_MASTER_URI=http://ros-core:11311"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - ros-core
+    command:
+      - roslaunch /workspace/jupyter-ros/notebooks/launch/bridge.launch --screen
+
+  # ros-fileserver:
+  #   image: gramaziokohler/ros-noetic-moveit
+  #   container_name: ros-fileserver
+  #   environment:
+  #     - ROS_HOSTNAME=ros-fileserver
+  #     - ROS_MASTER_URI=http://ros-core:11311
+  #   depends_on:
+  #     - ros-core
+  #   command:
+  #     - roslaunch
+  #     - --wait
+  #     - file_server
+  #     - file_server.launch

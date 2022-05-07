@@ -1,0 +1,93 @@
+#FROM ros:noetic-robot
+FROM gramaziokohler/ros-noetic-moveit
+
+RUN apt-get update && \
+ apt-get -y install ros-noetic-rviz \
+ ros-noetic-hector-slam ros-noetic-vision-msgs \ 
+ ros-noetic-image-transport ros-noetic-image-publisher \
+ ros-noetic-navigation git nano
+
+
+#
+# setup hector_slam dep
+#
+WORKDIR /workspace/src
+RUN sudo git clone https://github.com/robopeak/rplidar_ros.git
+RUN git clone -b noetic-devel https://github.com/tu-darmstadt-ros-pkg/hector_navigation.git
+RUN git clone https://github.com/tu-darmstadt-ros-pkg/ceres_catkin.git
+RUN git clone https://github.com/catkin/catkin_simple.git
+RUN git clone https://github.com/ethz-asl/glog_catkin.git
+RUN git clone https://github.com/ethz-asl/gflags_catkin.git
+
+#
+# install ros dep
+#
+
+RUN apt-get install -y golang-golang-x-sys-dev python3-catkin-pkg \
+    libgflags-dev ros-noetic-pcl-conversions
+
+WORKDIR /workspace
+RUN rosdep install -r -y --from-paths src --ignore-src
+
+
+#
+# catkin_make 
+#
+COPY scripts/ros_entrypoint.sh /ros_entrypoint.sh
+RUN bash /opt/ros/noetic/setup.bash
+WORKDIR /workspace 
+RUN rm -rf src/hector_navigation/ hector_gps_calibration
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
+
+
+# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd workspace; catkin_make'
+
+
+#
+# set up motors and luanch files
+#
+WORKDIR /workspace
+RUN apt-get install -y python3-pip
+#RUN pip install Adafruit_MotorHAT
+RUN sudo rm /opt/ros/noetic/share/hector_mapping/launch/mapping_default.launch
+#run sudo rm /usr/local/lib/python3.8/dist-packages/Adafruit_MotorHAT/Adafruit_MotorHAT_Motors.py
+COPY mapping_default.launch /opt/ros/noetic/share/hector_mapping/launch/mapping_default.launch
+COPY entry.launch /opt/ros/noetic/share/hector_slam_launch/launch/entry.launch
+#COPY motor_hat.py /usr/local/lib/python3.8/dist-packages/Adafruit_MotorHAT/Adafruit_MotorHAT_Motors.py
+
+RUN sudo apt-get install -y python3-smbus 
+RUN pip3 install adafruit-circuitpython-pca9685 Jetson.GPIO
+
+RUN sudo apt-get install npm -y
+RUN git clone https://github.com/RoboStack/jupyter-ros.git
+WORKDIR /workspace/jupyter-ros
+RUN pip install -e .
+#RUn whereis jupyter
+RUN pip install numpy --upgrade
+RUN pip install jupyros
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable --py --sys-prefix widgetsnbextension'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable jupyros --py --sys-prefix'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension install --py --symlink --sys-prefix jupyros'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; jupyter nbextension enable --py --sys-prefix jupyros'
+RUN /bin/bash -c 'jupyter notebook --generate-config'
+RUN rm -rf /root/.jupyter/jupyter_notebook_config.py
+COPY jupyter_config.py /root/.jupyter/jupyter_notebook_config.py
+WORKDIR /workspace/src
+RUN git clone https://github.com/RobotWebTools/tf2_web_republisher.git
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
+WORKDIR /workspace
+
+#RUN conda install jupyter bqplot pyyaml ipywidgets
+
+# #
+# # setup jetbot dep
+# #
+# RUN apt-get update; apt-get -y install python3-pip
+# RUN pip install Adafruit-MotorHAT
+
+# WORKDIR /workspace/src
+# RUN git clone -b melodic https://github.com/dusty-nv/jetbot_ros
+
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["bash"]

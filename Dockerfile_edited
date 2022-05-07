@@ -1,0 +1,50 @@
+FROM ros:noetic-robot
+
+RUN apt-get update && \
+ apt-get -y install ros-noetic-rviz \
+ ros-noetic-hector-slam ros-noetic-vision-msgs \ 
+ ros-noetic-image-transport ros-noetic-image-publisher \
+ ros-noetic-navigation git nano
+
+
+#
+# setup jetbot dep
+#
+WORKDIR /workspace/src
+RUN sudo git clone https://github.com/robopeak/rplidar_ros.git
+
+# git and cmake should be installed
+RUN apt-get install cmake
+
+# clone the repo and submodules
+WORKDIR /workspace
+RUN git clone https://github.com/dusty-nv/jetson-inference; cd jetson-inference; git submodule update --init
+
+# build from source
+RUN mkdir /workspace/jetson-inference/build
+
+#WORKDIR /workspace/jetson-inference/build
+RUN cd /workspace/jetson-inference/build; cmake ../
+RUN make
+
+# install libraries
+RUN sudo make install
+
+#
+# setup entrypoint
+#
+COPY scripts/ros_entrypoint.sh /ros_entrypoint.sh
+# RUN bash /opt/ros/noetic/setup.bash
+
+# #
+# # setup jetbot dep
+# #
+# RUN apt-get update; apt-get -y install python3-pip
+# RUN pip install Adafruit-MotorHAT
+
+# WORKDIR /workspace/src
+# RUN git clone -b melodic https://github.com/dusty-nv/jetbot_ros
+
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["bash"]

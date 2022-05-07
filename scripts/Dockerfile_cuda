@@ -1,0 +1,65 @@
+FROM ros:noetic-robot
+
+RUN apt-get update && \
+ apt-get -y install ros-noetic-rviz \
+ ros-noetic-hector-slam ros-noetic-vision-msgs \ 
+ ros-noetic-image-transport ros-noetic-image-publisher \
+ ros-noetic-navigation git nano
+
+
+#
+# setup jetbot dep
+#
+WORKDIR /workspace/src
+RUN sudo git clone https://github.com/robopeak/rplidar_ros.git
+
+# git and cmake should be installed
+RUN apt-get install cmake
+
+# clone the repo and submodules
+WORKDIR /workspace
+RUN git clone https://github.com/dusty-nv/jetson-inference; cd jetson-inference; git submodule update --init
+
+
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV NVIDIA_REQUIRE_CUDA "cuda>=10.0"
+
+FROM nvidia/cuda:10.2-base
+
+COPY --from=ffmpeg /usr/local/cuda* /usr/local
+
+ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,video
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cuda-npp-10-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+
+# build from source
+RUN mkdir build
+WORKDIR /workspace/jetson-inference/build
+RUN cmake -DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so ../ 
+RUN make
+
+# install libraries
+RUN sudo make install
+
+#
+# setup entrypoint
+#
+COPY scripts/ros_entrypoint.sh /ros_entrypoint.sh
+# RUN bash /opt/ros/noetic/setup.bash
+
+# #
+# # setup jetbot dep
+# #
+# RUN apt-get update; apt-get -y install python3-pip
+# RUN pip install Adafruit-MotorHAT
+
+# WORKDIR /workspace/src
+# RUN git clone -b melodic https://github.com/dusty-nv/jetbot_ros
+
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["bash"]
