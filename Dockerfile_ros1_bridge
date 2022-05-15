@@ -76,6 +76,23 @@ WORKDIR /workspace/src
 RUN git clone https://github.com/RobotWebTools/tf2_web_republisher.git
 RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
 WORKDIR /workspace
+RUN apt-get install -y ros-noetic-imu-tools ros-noetic-rosserial ros-noetic-rosserial-arduino
+# RUN git clone https://github.com/Brazilian-Institute-of-Robotics/i2c_device_ros.git /workspace/src/i2c_device_ros
+# RUN git clone https://github.com/Brazilian-Institute-of-Robotics/mpu6050_driver.git/ workspace/src/mpu6050_driver
+RUN git clone https://github.com/soarbear/mpu6050_imu_ros.git /workspace/src/mpu6050_imu_ros
+RUN git clone https://github.com/tu-darmstadt-ros-pkg/hector_mpu6050_imu_converter.git /workspace/src/hector_mpu6050_imu_converter
+RUN git clone https://github.com/ecostech/rosabridge.git  /workspace/src/rosabridge
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /workspace; catkin_make'
+
+
+RUN apt install -y xz-utils libcanberra-gtk-module libcanberra-gtk3-module default-jdk
+WORKDIR /
+RUN curl -sL "https://downloads.arduino.cc/arduino-nightly-linuxaarch64.tar.xz" -o "arduino-nightly.tar.xz"
+RUN tar -xf arduino-nightly.tar.xz 
+RUN bash arduino-nightly/install.sh
+RUN mkdir -p /root/Arduino/libraries
+RUN bash -c '. /opt/ros/noetic/setup.bash; cd /root/Arduino/libraries; rosrun rosserial_arduino make_libraries.py .'
+
 
 #RUN conda install jupyter bqplot pyyaml ipywidgets
 

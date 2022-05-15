@@ -1,5 +1,5 @@
 # where the project resides inside docker
-DOCKER_ROOT="/workspace/src/ros_bot"
+DOCKER_ROOT="/workspace/src/ros_bot"	
 
 # generate mount commands
 DATA_VOLUME="--volume $PWD/data:$DOCKER_ROOT/data"
@@ -40,7 +40,7 @@ $V4L2_DEVICES"
 
 
 
-sudo docker run -it --rm --name ros1-bridge-hector \
+sudo docker run --runtime nvidia -it --rm --name l4t-notebook \
     --network host \
     --privileged \
     -e DISPLAY=$DISPLAY \
@@ -48,4 +48,5 @@ sudo docker run -it --rm --name ros1-bridge-hector \
     -v $XAUTH:$XAUTH -e XAUTHORITY=$XAUTH \
     -v /tmp/argus_socket:/tmp/argus_socket \
     -v /etc/enctune.conf:/etc/enctune.conf \
-    $MOUNTS ros1-bridge
+    $MOUNTS ros1-hector-imu
+#ros1-jetbot-jupyter-hector
